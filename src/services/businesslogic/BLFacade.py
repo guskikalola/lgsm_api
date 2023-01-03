@@ -46,12 +46,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # /token endpoint configuration
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/users/token", auto_error=AUTHENTICATION_ENABLED)
-if not AUTHENTICATION_ENABLED:
-    print("""
-        Authentication is disabled!
-        Default user will be used ( username: admin )
-    """)
+    tokenUrl="/api/v1/user/token", auto_error=AUTHENTICATION_ENABLED)
 
 
 class BLFacade:
@@ -61,6 +56,21 @@ class BLFacade:
     @staticmethod
     def setDataaccess(dataaccess: DataAccess):
         BLFacade.__dataaccess = dataaccess
+        
+        if not AUTHENTICATION_ENABLED:
+            print("""
+                Authentication is disabled!
+                Default user will be used ( username: administrator )
+            """)
+            # Create administrator user
+            BLFacade.create_user(
+                username=AUTHENTICATION_DISABLED_USER.username,
+                active=AUTHENTICATION_DISABLED_USER.active,
+                full_name=AUTHENTICATION_DISABLED_USER.full_name,
+                email=AUTHENTICATION_DISABLED_USER.email,
+                password=""
+            )
+
 
     @staticmethod
     def getDB() -> DataAccess:
@@ -94,7 +104,7 @@ class BLFacade:
     def authenticate_user(username: str, plain_text_password: str):
 
         if AUTHENTICATION_ENABLED == False:
-            return AUTHENTICATION_DISABLED_USER
+            return BLFacade.get_user(AUTHENTICATION_DISABLED_USERNAME)
 
         user = BLFacade.get_user(username)
         if not user:
@@ -130,7 +140,7 @@ class BLFacade:
     def get_current_user(token: str = Depends(oauth2_scheme)):
 
         if AUTHENTICATION_ENABLED == False:
-            return AUTHENTICATION_DISABLED_USER.getModel()
+            return BLFacade.get_user(AUTHENTICATION_DISABLED_USERNAME).getModel()
 
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
