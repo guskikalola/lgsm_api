@@ -1,0 +1,6 @@
+FROM ubuntu:latest
+WORKDIR /app
+COPY build .
+RUN sh install.sh
+ENTRYPOINT [ "sh", "entrypoint.sh" ]
+EXPOSE 8000
