@@ -16,10 +16,28 @@ async def get_all_servers():
 async def get_server(server_name: str):
     return BLFacade.get_server(server_name)
 
+
+@router.get("/{server_name}/download")
+async def install_server(server_name: str, current_user: User = Depends(BLFacade.get_current_active_user)):
+    server = BLFacade.get_server(server_name)
+    if not server is None:
+        return server.download()
+    else:
+        raise HTTPException(status_code=400, detail=[{
+            "msg": "Server not found"
+        }])
+
+
 @router.get("/{server_name}/install")
 async def install_server(server_name: str, current_user: User = Depends(BLFacade.get_current_active_user)):
     server = BLFacade.get_server(server_name)
-    server.install()
+    if not server is None:
+        return server.install()
+    else:
+        raise HTTPException(status_code=400, detail=[{
+            "msg": "Server not found"
+        }])
+
 
 @router.delete("/{server_name}")
 async def delete_server(server_name: str, current_user: User = Depends(BLFacade.get_current_active_user)):
@@ -31,10 +49,11 @@ async def delete_server(server_name: str, current_user: User = Depends(BLFacade.
             "msg": "Server not found"
         }])
 
+
 @router.post("/")
 async def create_server(server: ServerModel, current_user: User = Depends(BLFacade.get_current_active_user)):
     try:
-        server = BLFacade.create_server(server.server_name,server.game_name)
+        server = BLFacade.create_server(server.server_name, server.game_name)
     except ServerNameRepeatedException as e:
         raise HTTPException(status_code=400, detail=[{
             "msg": e.args[0]
