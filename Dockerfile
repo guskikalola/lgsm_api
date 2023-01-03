@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM python:alpine
 WORKDIR /app
 COPY . .
 RUN sh install.sh

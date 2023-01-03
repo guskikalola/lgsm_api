@@ -9,6 +9,9 @@ from models.TokenDataModel import TokenDataModel
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import HTTPException, Depends, status
 from services.domain.User import User
+from services.enums import ServerCommandsResponse
+from services.exceptions import ServerNotFoundException
+from services.enums import ExecutionMethodEnum
 
 # Authetication enabled?
 AUTHENTICATION_ENABLED: bool = environ.get("AUTHENTICATION_ENABLED") or True
@@ -201,3 +204,22 @@ class BLFacade:
         servers = db.get_all_servers()
         db.close()
         return servers
+
+    @staticmethod
+    def execute_method(server_name: str, execution_method: ExecutionMethodEnum):
+        db = BLFacade.getDB()
+        db.open()
+        server = db.get_server(server_name)
+        db.close()
+        if server is None:
+            raise ServerNotFoundException(f"Server not found. ({server_name})")
+
+        match execution_method:
+            case ExecutionMethodEnum.START:
+                return server.start()
+            case ExecutionMethodEnum.RESTART:
+                return server.restart()
+            case ExecutionMethodEnum.STOP:
+                return server.stop()
+            case _:
+                pass

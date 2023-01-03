@@ -1,34 +1,26 @@
 #!/bin/bash
 
-# Update ubuntu
-apt update -y && apt upgrade -y
+# Update alpine
 
-# Install python
-apt install -y python3-pip
-
-# Update pip tool
-pip3 install --upgrade pip
+apk update && apk upgrade
 
 # Install dependencies
 
 # ----
 # git : pulling tools for linuxgsm
-# libmariadb3 and libmariadb-dev : connector for mariadb
+# mariadb-connector-c-dev : connector for mariadb
 # gcc : python dependencies compiling 
-# curl: linuxgsm script
-# bash: linuxgsm script
-# wget: linuxgsm script
+# curl : linuxgsm script
+# bash : linuxgsm script
+# wget : linuxgsm script
+# musl-dev : stdlib.h
 # ----
 
-apt install -y git libmariadb3 libmariadb-dev gcc curl bash wget
+apk add git mariadb-connector-c-dev gcc curl bash wget musl-dev
 
 # Setup docker 
-apt install -y ca-certificates gnupg lsb-release
-mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-apt update
-apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+apk add docker docker-cli-compose
 
 # Install python requirements
 

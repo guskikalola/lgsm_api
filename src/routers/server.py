@@ -3,6 +3,9 @@ from services.businesslogic.BLFacade import BLFacade
 from services.domain.User import User
 from models.ServerModel import ServerModel
 from services.exceptions import ServerNameRepeatedException
+from services.enums.LinuxGSMResponses import ServerCommandsResponse
+from services.exceptions import ServerNotFoundException
+from services.enums import ExecutionMethodEnum
 
 router = APIRouter()
 
@@ -17,7 +20,7 @@ async def get_server(server_name: str):
     return BLFacade.get_server(server_name)
 
 
-@router.get("/{server_name}/download")
+@router.post("/{server_name}/download")
 async def install_server(server_name: str, current_user: User = Depends(BLFacade.get_current_active_user)):
     server = BLFacade.get_server(server_name)
     if not server is None:
@@ -28,7 +31,7 @@ async def install_server(server_name: str, current_user: User = Depends(BLFacade
         }])
 
 
-@router.get("/{server_name}/install")
+@router.post("/{server_name}/install")
 async def install_server(server_name: str, current_user: User = Depends(BLFacade.get_current_active_user)):
     server = BLFacade.get_server(server_name)
     if not server is None:
@@ -39,8 +42,30 @@ async def install_server(server_name: str, current_user: User = Depends(BLFacade
         }])
 
 
+@router.post("/{server_name}/{execution_method}")
+async def install_server(server_name: str, execution_method: ExecutionMethodEnum, current_user: User = Depends(BLFacade.get_current_active_user)):
+    try:
+        rc = BLFacade.execute_method(server_name, execution_method)
+        if rc == ServerCommandsResponse.OK:
+            return 200
+        elif rc == ServerCommandsResponse.INFO or rc == ServerCommandsResponse.NOT_RUNNING:
+            raise HTTPException(status_code=304, detail=[{
+                "msg": f"Server not modified. Status code: {rc}"
+            }])
+        else:
+            raise HTTPException(status_code=500, detail=[{
+                "msg": f"Error while executing command. Status code: {rc}"
+            }])
+    except ServerNotFoundException:
+        raise HTTPException(status_code=400, detail=[{
+            "msg": "Server not found"
+        }])
+
+
 @router.delete("/{server_name}")
 async def delete_server(server_name: str, current_user: User = Depends(BLFacade.get_current_active_user)):
+    server = BLFacade.execute_method(server_name, "stop")
+
     server = BLFacade.delete_server(server_name)
     if not server is None:
         return server
