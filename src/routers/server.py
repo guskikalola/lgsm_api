@@ -42,10 +42,28 @@ async def install_server(server_name: str, current_user: User = Depends(BLFacade
         }])
 
 
-@router.post("/{server_name}/{execution_method}")
-async def install_server(server_name: str, execution_method: ExecutionMethodEnum, current_user: User = Depends(BLFacade.get_current_active_user)):
+@router.get("/{server_name}/details")
+async def get_server_details(server_name: str, current_user: User = Depends(BLFacade.get_current_active_user)):
     try:
-        rc = BLFacade.execute_method(server_name, execution_method)
+        details = BLFacade.get_details(server_name)
+    except ServerNotFoundException:
+        raise HTTPException(status_code=400, detail=[{
+            "msg": "Server not found"
+        }])
+    else:
+        return details
+
+
+@router.post("/{server_name}/{execution_method}")
+async def execute_method(server_name: str, execution_method: ExecutionMethodEnum, stop_container: bool = False, current_user: User = Depends(BLFacade.get_current_active_user)):
+    try:
+        rc = BLFacade.execute_method(
+            server_name, execution_method, stop_container)
+    except ServerNotFoundException:
+        raise HTTPException(status_code=400, detail=[{
+            "msg": "Server not found"
+        }])
+    else:
         if rc == ServerCommandsResponse.OK:
             return 200
         elif rc == ServerCommandsResponse.INFO or rc == ServerCommandsResponse.NOT_RUNNING:
@@ -56,10 +74,6 @@ async def install_server(server_name: str, execution_method: ExecutionMethodEnum
             raise HTTPException(status_code=500, detail=[{
                 "msg": f"Error while executing command. Status code: {rc}"
             }])
-    except ServerNotFoundException:
-        raise HTTPException(status_code=400, detail=[{
-            "msg": "Server not found"
-        }])
 
 
 @router.delete("/{server_name}")
@@ -75,7 +89,7 @@ async def delete_server(server_name: str, current_user: User = Depends(BLFacade.
         }])
 
 
-@router.post("/")
+@router.post("/create")
 async def create_server(server: ServerModel, current_user: User = Depends(BLFacade.get_current_active_user)):
     try:
         server = BLFacade.create_server(server.server_name, server.game_name)

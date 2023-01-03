@@ -25,11 +25,11 @@ app = FastAPI(redoc_url=None)
 # Include routers
 app.include_router(
     server.router,
-    prefix="/api/v1/servers",
+    prefix="/api/v1/server",
     tags= ["servers"]
     )
 app.include_router(
     users.router,
-    prefix="/api/v1/users",
+    prefix="/api/v1/user",
     tags= ["users"]
     )

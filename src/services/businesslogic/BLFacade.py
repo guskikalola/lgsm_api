@@ -206,7 +206,7 @@ class BLFacade:
         return servers
 
     @staticmethod
-    def execute_method(server_name: str, execution_method: ExecutionMethodEnum):
+    def execute_method(server_name: str, execution_method: ExecutionMethodEnum, stop_container: bool):
         db = BLFacade.getDB()
         db.open()
         server = db.get_server(server_name)
@@ -220,6 +220,18 @@ class BLFacade:
             case ExecutionMethodEnum.RESTART:
                 return server.restart()
             case ExecutionMethodEnum.STOP:
-                return server.stop()
+                return server.stop(stop_container)
             case _:
                 pass
+
+    @staticmethod
+    def get_details(server_name: str):
+        db = BLFacade.getDB()
+        db.open()
+        server = db.get_server(server_name)
+        db.close()
+
+        if server is None:
+            raise ServerNotFoundException(f"Server not found. ({server_name})")
+
+        return server.get_details()
