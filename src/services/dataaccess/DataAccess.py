@@ -1,7 +1,7 @@
 import mariadb
 import sys
-from services.domain.User import User
-from services.domain.Server import Server
+from services.domain import User
+from services.domain import Server
 from services.exceptions import ServerNameRepeatedException  
 
 

@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
-from services.businesslogic.BLFacade import BLFacade
-from services.domain.User import User
-from models.ServerModel import ServerModel
+from fastapi import APIRouter, Depends, HTTPException, Request
+from services.businesslogic import BLFacade
+from services.domain import User
+from models import ServerModel
 from services.exceptions import ServerNameRepeatedException
 from services.enums.LinuxGSMResponses import ServerCommandsResponse
 from services.exceptions import ServerNotFoundException
 from services.enums import ExecutionMethodEnum
+from sse_starlette.sse import EventSourceResponse
+from services.utils import ConsoleStream 
 
 router = APIRouter()
 
@@ -53,6 +55,18 @@ async def get_server_details(server_name: str, current_user: User = Depends(BLFa
     else:
         return details
 
+
+@router.get("/{server_name}/console")
+async def console_stream(server_name: str, request: Request):
+    server = BLFacade.get_server(server_name)
+    if not server is None:
+        # event_generator = server.get_console_stream(request)
+        event_generator = ConsoleStream(server,request)
+        return EventSourceResponse(event_generator)
+    else:
+        raise HTTPException(status_code=400, detail=[{
+            "msg": "Server not found"
+        }])
 
 @router.post("/{server_name}/{execution_method}")
 async def execute_method(server_name: str, execution_method: ExecutionMethodEnum, stop_container: bool = False, current_user: User = Depends(BLFacade.get_current_active_user)):

@@ -4,6 +4,7 @@ import subprocess
 from datetime import datetime
 from services.utils import DockerComposeTemplate, ServerDetailsParser
 from services.enums import ServerCommandsResponse
+from services.utils import ConsoleStream
 
 
 class Server:
@@ -124,6 +125,12 @@ class Server:
             return self.__get_details_model(details)
         else:
             return None
+
+    def get_console_path(self):
+        return f"{self.exec_path}/log/console/{self.game_name}-console.log"
+
+    async def get_console_stream(self, request):
+        return ConsoleStream(self,request)
 
     def getModel(self) -> ServerModel:
         return ServerModel(

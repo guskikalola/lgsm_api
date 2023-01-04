@@ -2,6 +2,9 @@ fastapi
 uvicorn[standard]
 mariadb
 python-multipart
-cryptography
+# cryptography
 python-jose
 passlib
+sse-starlette
+asyncio
+watchdog

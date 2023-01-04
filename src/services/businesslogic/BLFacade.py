@@ -1,15 +1,14 @@
-from services.dataaccess.DataAccess import DataAccess
+from services.dataaccess import DataAccess
 from datetime import datetime, timedelta
 from os import environ
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from models.UserModel import UserModel
+from models import UserModel
 from jose import JWTError
-from models.TokenDataModel import TokenDataModel
+from models import TokenDataModel
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import HTTPException, Depends, status
-from services.domain.User import User
-from services.enums import ServerCommandsResponse
+from services.domain import User
 from services.exceptions import ServerNotFoundException
 from services.enums import ExecutionMethodEnum
 
