@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from services.businesslogic import BLFacade
 from services.domain import User
-from models import ServerModel
+from models import ServerModel, GameConsoleCommand
 from services.exceptions import ServerNameRepeatedException
 from services.enums.LinuxGSMResponses import ServerCommandsResponse
-from services.exceptions import ServerNotFoundException
+from services.exceptions import ServerNotFoundException, ContainerNotRunningException
 from services.enums import ExecutionMethodEnum
 from sse_starlette.sse import EventSourceResponse
 from services.utils import ConsoleStream 
@@ -52,18 +52,40 @@ async def get_server_details(server_name: str, current_user: User = Depends(BLFa
         raise HTTPException(status_code=400, detail=[{
             "msg": "Server not found"
         }])
+    except ContainerNotRunningException as e:
+        raise HTTPException(status_code=400, detail=[{
+            "msg": " ".join(e.args)
+        }])
     else:
         return details
 
 
 @router.get("/{server_name}/console")
-async def console_stream(server_name: str, request: Request):
+async def console_stream(server_name: str, request: Request, current_user: User = Depends(BLFacade.get_current_active_user)):
     server = BLFacade.get_server(server_name)
     if not server is None:
-        # event_generator = server.get_console_stream(request)
         event_generator = ConsoleStream(server,request)
         return EventSourceResponse(event_generator)
     else:
+        raise HTTPException(status_code=400, detail=[{
+            "msg": "Server not found"
+        }])
+
+@router.post("/{server_name}/console")
+async def send_game_console_command(server_name: str, command: GameConsoleCommand, current_user: User = Depends(BLFacade.get_current_active_user)):
+    try:
+        rc = BLFacade.send_game_console_command(server_name,command.command)
+        if rc == ServerCommandsResponse.OK:
+            return 200
+        elif rc == ServerCommandsResponse.INFO or rc == ServerCommandsResponse.NOT_RUNNING:
+            raise HTTPException(status_code=304, detail=[{
+                "msg": f"Server not modified. Status code: {rc}"
+            }])
+        else:
+            raise HTTPException(status_code=500, detail=[{
+                "msg": f"Error while executing command. Status code: {rc}"
+            }])
+    except ServerNotFoundException:
         raise HTTPException(status_code=400, detail=[{
             "msg": "Server not found"
         }])

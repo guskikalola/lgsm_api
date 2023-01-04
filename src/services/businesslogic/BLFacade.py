@@ -9,7 +9,7 @@ from models import TokenDataModel
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import HTTPException, Depends, status
 from services.domain import User
-from services.exceptions import ServerNotFoundException
+from services.exceptions import ServerNotFoundException, ContainerNotRunningException
 from services.enums import ExecutionMethodEnum
 
 # Authetication enabled?
@@ -243,4 +243,19 @@ class BLFacade:
         if server is None:
             raise ServerNotFoundException(f"Server not found. ({server_name})")
 
-        return server.get_details()
+        details = server.get_details()
+        
+        if details is None:
+            raise ContainerNotRunningException(f"The server's container is not running. ({server_name})")
+
+    @staticmethod
+    def send_game_console_command(server_name: str, command: str):
+        db = BLFacade.getDB()
+        db.open()
+        server = db.get_server(server_name)
+        db.close()
+
+        if server is None:
+            raise ServerNotFoundException(f"Server not found. ({server_name})")
+
+        return server.execute_game_command(command)

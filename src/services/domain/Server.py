@@ -132,6 +132,10 @@ class Server:
     async def get_console_stream(self, request):
         return ConsoleStream(self,request)
 
+    def execute_game_command(self,command: str) -> int:
+        result = self.execute("send",command)
+        return result.get("returncode")
+
     def getModel(self) -> ServerModel:
         return ServerModel(
             server_name=self.server_name,
