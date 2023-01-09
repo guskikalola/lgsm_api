@@ -1,5 +1,6 @@
 from enum import Enum 
 
 class ServerStatusEnum(str,Enum):
-    RUNNING = "RUNNING"
+    STARTED = "STARTED"
     STOPPED = "STOPPED"
+    NOT_INSTALLED = "NOT_INSTALLED"

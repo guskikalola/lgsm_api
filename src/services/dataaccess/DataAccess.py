@@ -2,7 +2,7 @@ import mariadb
 import sys
 from services.domain import User
 from services.domain import Server
-from services.exceptions import ServerNameRepeatedException  
+from services.exceptions import ServerNameRepeatedException
 
 
 class DataAccess:
@@ -36,8 +36,8 @@ class DataAccess:
             END;
         """
         create_procedure_create_server_sql = """
-            CREATE DEFINER=CURRENT_USER PROCEDURE IF NOT EXISTS `CreateServer` (IN `server_name_p` VARCHAR(125) CHARSET utf8mb4, IN `game_name_p` VARCHAR(125) CHARSET utf8mb4)  COMMENT 'Creates a new server' BEGIN
-                INSERT INTO SERVER(server_name, game_name) VALUES (server_name_p, game_name_p);
+            CREATE DEFINER=CURRENT_USER PROCEDURE IF NOT EXISTS `CreateServer` (IN `server_name_p` VARCHAR(125) CHARSET utf8mb4, IN `server_pretty_name_p` VARCHAR(125) CHARSET utf8mb4, IN `game_name_p` VARCHAR(125) CHARSET utf8mb4)  COMMENT 'Creates a new server' BEGIN
+                INSERT INTO SERVER(server_name, server_pretty_name, game_name) VALUES (server_name_p,server_pretty_name_p, game_name_p);
             END;
         """
 
@@ -60,6 +60,7 @@ class DataAccess:
         create_table_servers_sql = """
             CREATE TABLE IF NOT EXISTS `SERVER` (
                 `server_name` VARCHAR(125) NOT NULL PRIMARY KEY, 
+                `server_pretty_name` VARCHAR(125) NOT NULL, 
                 `game_name` VARCHAR(125) NOT NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
         """
@@ -100,20 +101,20 @@ class DataAccess:
             return None
 
     def get_server(self, server_name: str):
-        sql = "SELECT server_name, game_name FROM SERVER WHERE server_name = ?"
+        sql = "SELECT server_name, server_pretty_name, game_name FROM SERVER WHERE server_name = ?"
         self.cursor.execute(sql, [server_name])
         server = self.cursor.fetchone()
         if not server is None:
-            return Server(server_name=server[0],game_name=server[1])
+            return Server(server_name=server[0], server_pretty_name=server[1], game_name=server[2])
         else:
             return None
-    
+
     def get_all_servers(self):
-        sql = "SELECT server_name, game_name FROM SERVER"
+        sql = "SELECT server_name, server_pretty_name,game_name FROM SERVER"
         self.cursor.execute(sql)
         servers = self.cursor.fetchall()
         if not servers is None:
-            return [Server(server_name=server[0], game_name=server[1]) for server in servers]
+            return [Server(server_name=server[0], server_pretty_name=server[1], game_name=server[2]) for server in servers]
         else:
             return None
 
@@ -130,25 +131,28 @@ class DataAccess:
             return e
         return user
 
-
-    def create_server(self, server_name: str, game_name: str):
+    def create_server(self, server_name: str, server_pretty_name: str, game_name: str):
         """Create a new server
-        
+
         Creates a new server entry in the database, creates the
         server folder and downloads the basic scripts from linuxgsm there.
 
         :param str server_name: Server unique identifier
+        :param str server_pretty_name: Server pretty name
         :param str game_name: Name of the server's game
         """
-
+        print(server_pretty_name)
         server = Server(
             server_name=server_name,
-            game_name=game_name
+            server_pretty_name=server_pretty_name,
+            game_name=game_name,
         )
-        parameters = (server.server_name, server.game_name)
+        parameters = (server.server_name,
+                      server.server_pretty_name, server.game_name)
 
         if not self.get_server(server_name) is None:
-            raise ServerNameRepeatedException("There is already a server with that name. ({})".format(server_name))
+            raise ServerNameRepeatedException(
+                "There is already a server with that name. ({})".format(server_name))
 
         try:
             self.connection.begin()
@@ -158,9 +162,9 @@ class DataAccess:
             raise e
         return server
 
-    def delete_server(self,server_name: str):
+    def delete_server(self, server_name: str):
         """Delete a server
-        
+
         Deletes the server from the database and filesystem
 
         :param str server_name: Server unique identifier

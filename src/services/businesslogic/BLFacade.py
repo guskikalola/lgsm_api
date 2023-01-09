@@ -11,6 +11,7 @@ from fastapi import HTTPException, Depends, status
 from services.domain import User
 from services.exceptions import ServerNotFoundException, ContainerNotRunningException
 from services.enums import ExecutionMethodEnum
+import re
 
 # Authetication enabled?
 AUTHENTICATION_ENABLED: bool = environ.get("AUTHENTICATION_ENABLED") or True
@@ -166,7 +167,16 @@ class BLFacade:
         return current_user
 
     @staticmethod
-    def create_server(server_name: str, game_name: str):
+    def make_server_name_unpretty(server_name: str):
+        unpretty = server_name.lower()
+        unpretty = unpretty.strip()
+        regex = re.compile(r"( )+")
+        unpretty = regex.sub(" ", unpretty)
+        unpretty = unpretty.replace(" ", "_")
+        return unpretty
+
+    @staticmethod
+    def create_server(server_pretty_name: str, game_name: str):
         """Create a new server
 
         Creates a new server entry in the database, creates the
@@ -176,11 +186,14 @@ class BLFacade:
         :param str game_name: Name of the server's game
         """
 
+        server_name = BLFacade.make_server_name_unpretty(server_pretty_name)
+
         db = BLFacade.getDB()
         db.open()
         # TODO : Handle duplicated key and invalid game
         try:
-            server = db.create_server(server_name, game_name)
+            server = db.create_server(
+                server_name, server_pretty_name, game_name)
         except Exception as e:
             db.close()
             raise e
@@ -203,6 +216,10 @@ class BLFacade:
         db.open()
         server = db.get_server(server_name)
         db.close()
+
+        if not server:
+            raise ServerNotFoundException(f"Server not found. ({server_name})")
+
         if with_details:
             return server.get_details_model()
         else:

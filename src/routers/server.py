@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from services.businesslogic import BLFacade
 from services.domain import User
-from models import ServerModel, GameConsoleCommand, ServerWithDetailsModel
+from models import ServerModel, GameConsoleCommand, ServerWithDetailsModel, ServerInputModel
 from services.exceptions import ServerNameRepeatedException
 from services.enums.LinuxGSMResponses import ServerCommandsResponse
 from services.exceptions import ServerNotFoundException, ContainerNotRunningException
@@ -19,8 +19,12 @@ async def get_all_servers(with_details: bool = False) -> list[ServerModel] | lis
 
 @router.get("/{server_name}")
 async def get_server(server_name: str,  with_details: bool = False):
-    return BLFacade.get_server(server_name,with_details)
-
+    try:
+        return BLFacade.get_server(server_name,with_details)
+    except ServerNotFoundException:
+        raise HTTPException(status_code=400, detail=[{
+            "msg": "Server not found"
+        }])
 
 @router.post("/{server_name}/download")
 async def install_server(server_name: str, current_user: User = Depends(BLFacade.get_current_active_user)):
@@ -103,19 +107,19 @@ async def execute_method(server_name: str, execution_method: ExecutionMethodEnum
 
 @router.delete("/{server_name}")
 async def delete_server(server_name: str, current_user: User = Depends(BLFacade.get_current_active_user)):
-    server = BLFacade.execute_method(server_name, "stop")
 
-    server = BLFacade.delete_server(server_name)
-    if not server is None:
-        return server
-    else:
+    try:
+        BLFacade.execute_method(server_name, "stop", stop_container=False)
+        server = BLFacade.delete_server(server_name)
+    except ServerNotFoundException as e:
         raise HTTPException(status_code=400, detail=[{
             "msg": "Server not found"
         }])
-
+    else:
+        return server
 
 @router.post("/create")
-async def create_server(server: ServerModel, current_user: User = Depends(BLFacade.get_current_active_user)):
+async def create_server(server: ServerInputModel, current_user: User = Depends(BLFacade.get_current_active_user)):
     try:
         server = BLFacade.create_server(server.server_name, server.game_name)
     except ServerNameRepeatedException as e:

@@ -3,13 +3,14 @@ from models import ServerDetailsModel, ServerWithDetailsModel
 import subprocess
 from datetime import datetime
 from services.utils import DockerComposeTemplate, ServerDetailsParser
-from services.enums import ServerCommandsResponse
+from services.enums import ServerCommandsResponse, ServerStatusEnum
 from services.utils import ConsoleStream
 
 
 class Server:
-    def __init__(self, server_name: str, game_name: str):
+    def __init__(self, server_name: str, server_pretty_name: str, game_name: str):
         self.server_name = server_name
+        self.server_pretty_name = server_pretty_name
         self.game_name = game_name
         self.exec_path = "/servers/"+server_name
 
@@ -99,55 +100,7 @@ class Server:
     def restart(self) -> int:
         return self.execute("restart").get("returncode")
 
-    def __get_details_model(self, details: dict):
-        return ServerDetailsModel(
-            ip_address=details.get("Internet IP"),
-            status=details.get("Status")
-        )
-
-    def get_details(self) -> ServerDetailsModel:
-        result = self.execute("details")
-        if result.get("returncode") == ServerCommandsResponse.OK:
-            details = ServerDetailsParser(result.get("stdout"))
-            return self.__get_details_model(details)
-        else:
-            if self.installed():
-                status = "STOPPED"
-            else:
-                status = "NOT INSTALLED"
-            return ServerDetailsModel(
-                ip_address=None,
-                status=status
-            )
-
-    def get_console_path(self):
-        return f"{self.exec_path}/log/console/{self.game_name}-console.log"
-
-    async def get_console_stream(self, request):
-        return ConsoleStream(self,request)
-
-    def execute_game_command(self,command: str) -> int:
-        result = self.execute("send",command)
-        return result.get("returncode")
-
-    def get_details_model(self):
-        details = self.get_details()
-        return ServerWithDetailsModel(
-            game_name=self.game_name,
-            server_name=self.server_name,
-            details=details,
-        )
-
-    def get_model(self):
-        return ServerModel(
-            server_name=self.server_name,
-            game_name=self.game_name
-        )        
-
-    def getModel(self) -> ServerModel:
-        return self.get_model()
-
-    def installed(self):
+    def is_installed(self):
         command = f"cd {self.exec_path} && docker compose ps --all | wc -l"
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
         stdout = ""
@@ -165,4 +118,80 @@ class Server:
             print("Can't convert container_amount to int: ", stdout)
             return False
         else:
-            return container_amount > 1 # Check if there is at least one container in that folder
+            return container_amount > 1  # Check if there is at least one container in that folder
+
+    def get_status(self) -> ServerStatusEnum:
+
+        if not self.is_installed():
+            return ServerStatusEnum.NOT_INSTALLED
+
+        command = f"docker exec -i {self.server_name} bash -c 'tmux list-sessions -F {self.game_name} 2> /dev/null | grep -Exc \"^{self.game_name}\" && exit $?'"
+        print(command)
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+        stdout = ""
+        while True:
+            output = process.stdout.readline()
+            if process.poll() is not None:
+                break
+            if output:
+                stdout += output.decode()
+        rc = process.poll()
+        print(stdout)
+        if "Error response from daemon" in stdout:
+            return ServerStatusEnum.STOPPED
+
+        match(rc):
+            case 1:
+                return ServerStatusEnum.STOPPED
+            case 0:
+                return ServerStatusEnum.STARTED
+
+    def __get_details_model(self, details: dict):
+        return ServerDetailsModel(
+            ip_address=details.get("Internet IP"),
+        )
+
+    def get_details(self) -> ServerDetailsModel:
+        result = self.execute("details")
+        if result.get("returncode") == ServerCommandsResponse.OK:
+            details = ServerDetailsParser(result.get("stdout"))
+            return self.__get_details_model(details)
+        else:
+            if self.is_installed():
+                status = "STOPPED"
+            else:
+                status = "NOT INSTALLED"
+            return ServerDetailsModel(
+                ip_address=None,
+            )
+
+    def get_console_path(self):
+        return f"{self.exec_path}/log/console/{self.game_name}-console.log"
+
+    async def get_console_stream(self, request):
+        return ConsoleStream(self, request)
+
+    def execute_game_command(self, command: str) -> int:
+        result = self.execute("send", command)
+        return result.get("returncode")
+
+    def get_details_model(self):
+        details = self.get_details()
+        return ServerWithDetailsModel(
+            game_name=self.game_name,
+            server_name=self.server_name,
+            server_pretty_name=self.server_pretty_name,
+            server_status=self.get_status(),
+            details=details,
+        )
+
+    def get_model(self):
+        return ServerModel(
+            server_name=self.server_name,
+            server_pretty_name=self.server_pretty_name,
+            game_name=self.game_name,
+            server_status=self.get_status()
+        )
+
+    def getModel(self) -> ServerModel:
+        return self.get_model()
