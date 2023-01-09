@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from routers import server, users
 from services.dataaccess import DataAccess
 from services.businesslogic import BLFacade
+from fastapi.middleware.cors import CORSMiddleware
 
 # Connect to database
 db_user = environ.get("MARIADB_USER")
@@ -18,6 +19,20 @@ BLFacade.setDataaccess(dataAccess)
 
 # Create application
 app = FastAPI(redoc_url=None)
+
+# Setup CORS
+origins = [
+    "http://localhost:3000",
+    "http://localhost:8080",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include routers
 app.include_router(

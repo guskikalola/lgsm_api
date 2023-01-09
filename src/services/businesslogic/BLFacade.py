@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from os import environ
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from models import UserModel
+from models import UserModel, ServerWithDetailsModel, ServerModel
 from jose import JWTError
 from models import TokenDataModel
 from fastapi.security import OAuth2PasswordBearer
@@ -55,7 +55,7 @@ class BLFacade:
     @staticmethod
     def setDataaccess(dataaccess: DataAccess):
         BLFacade.__dataaccess = dataaccess
-        
+
         if not AUTHENTICATION_ENABLED:
             print("""
                 Authentication is disabled!
@@ -69,7 +69,6 @@ class BLFacade:
                 email=AUTHENTICATION_DISABLED_USER.email,
                 password=""
             )
-
 
     @staticmethod
     def getDB() -> DataAccess:
@@ -199,20 +198,26 @@ class BLFacade:
         return server
 
     @staticmethod
-    def get_server(server_name: str):
+    def get_server(server_name: str, with_details: bool = False) -> ServerModel | ServerWithDetailsModel:
         db = BLFacade.getDB()
         db.open()
         server = db.get_server(server_name)
         db.close()
-        return server
+        if with_details:
+            return server.get_details_model()
+        else:
+            return server.get_model()
 
     @staticmethod
-    def get_all_servers():
+    def get_all_servers(with_details: bool) -> list[ServerModel] | list[ServerWithDetailsModel]:
         db = BLFacade.getDB()
         db.open()
         servers = db.get_all_servers()
         db.close()
-        return servers
+        if with_details:
+            return [server.get_details_model() for server in servers]
+        else:
+            return [server.get_model() for server in servers]
 
     @staticmethod
     def execute_method(server_name: str, execution_method: ExecutionMethodEnum, stop_container: bool):
@@ -243,10 +248,7 @@ class BLFacade:
         if server is None:
             raise ServerNotFoundException(f"Server not found. ({server_name})")
 
-        details = server.get_details()
-        
-        if details is None:
-            raise ContainerNotRunningException(f"The server's container is not running. ({server_name})")
+        return server.get_details()
 
     @staticmethod
     def send_game_console_command(server_name: str, command: str):

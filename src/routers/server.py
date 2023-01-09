@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from services.businesslogic import BLFacade
 from services.domain import User
-from models import ServerModel, GameConsoleCommand
+from models import ServerModel, GameConsoleCommand, ServerWithDetailsModel
 from services.exceptions import ServerNameRepeatedException
 from services.enums.LinuxGSMResponses import ServerCommandsResponse
 from services.exceptions import ServerNotFoundException, ContainerNotRunningException
@@ -13,13 +13,13 @@ router = APIRouter()
 
 
 @router.get("/")
-async def get_all_servers():
-    return BLFacade.get_all_servers()
+async def get_all_servers(with_details: bool = False) -> list[ServerModel] | list[ServerWithDetailsModel]:
+    return [server for server in BLFacade.get_all_servers(with_details)]
 
 
 @router.get("/{server_name}")
-async def get_server(server_name: str):
-    return BLFacade.get_server(server_name)
+async def get_server(server_name: str,  with_details: bool = False):
+    return BLFacade.get_server(server_name,with_details)
 
 
 @router.post("/{server_name}/download")
@@ -27,17 +27,6 @@ async def install_server(server_name: str, current_user: User = Depends(BLFacade
     server = BLFacade.get_server(server_name)
     if not server is None:
         return server.download()
-    else:
-        raise HTTPException(status_code=400, detail=[{
-            "msg": "Server not found"
-        }])
-
-
-@router.post("/{server_name}/install")
-async def install_server(server_name: str, current_user: User = Depends(BLFacade.get_current_active_user)):
-    server = BLFacade.get_server(server_name)
-    if not server is None:
-        return server.install()
     else:
         raise HTTPException(status_code=400, detail=[{
             "msg": "Server not found"

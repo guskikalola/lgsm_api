@@ -1,5 +1,5 @@
 from models import ServerModel
-from models import ServerDetailsModel
+from models import ServerDetailsModel, ServerWithDetailsModel
 import subprocess
 from datetime import datetime
 from services.utils import DockerComposeTemplate, ServerDetailsParser
@@ -24,19 +24,6 @@ class Server:
                 break
             if output:
                 print(output.strip())
-        rc = process.poll()
-        return rc
-
-    def install(self) -> int:
-        command = "cd {} && docker compose up -d".format(self.exec_path)
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-        while True:
-            output = process.stdout.readline()
-            if process.poll() is not None:
-                break
-            if output:
-                output_stripped = output.strip().decode()
-                print(output_stripped)
         rc = process.poll()
         return rc
 
@@ -124,7 +111,14 @@ class Server:
             details = ServerDetailsParser(result.get("stdout"))
             return self.__get_details_model(details)
         else:
-            return None
+            if self.installed():
+                status = "STOPPED"
+            else:
+                status = "NOT INSTALLED"
+            return ServerDetailsModel(
+                ip_address=None,
+                status=status
+            )
 
     def get_console_path(self):
         return f"{self.exec_path}/log/console/{self.game_name}-console.log"
@@ -136,8 +130,39 @@ class Server:
         result = self.execute("send",command)
         return result.get("returncode")
 
-    def getModel(self) -> ServerModel:
+    def get_details_model(self):
+        details = self.get_details()
+        return ServerWithDetailsModel(
+            game_name=self.game_name,
+            server_name=self.server_name,
+            details=details,
+        )
+
+    def get_model(self):
         return ServerModel(
             server_name=self.server_name,
             game_name=self.game_name
-        )
+        )        
+
+    def getModel(self) -> ServerModel:
+        return self.get_model()
+
+    def installed(self):
+        command = f"cd {self.exec_path} && docker compose ps --all | wc -l"
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+        stdout = ""
+        while True:
+            output = process.stdout.readline()
+            if process.poll() is not None:
+                break
+            if output:
+                output_decoded = output.decode()
+                stdout += output_decoded
+        process.poll()
+        try:
+            container_amount = int(stdout)
+        except:
+            print("Can't convert container_amount to int: ", stdout)
+            return False
+        else:
+            return container_amount > 1 # Check if there is at least one container in that folder
