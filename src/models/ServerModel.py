@@ -5,7 +5,7 @@ from models import ServerInputModel
 class ServerModel(ServerInputModel):
     server_pretty_name: str = Field(
         title="The name of the server",
-        max_length=30,
+        max_length=50,
         min_length=5
     )
     server_status: ServerStatusEnum = Field (
