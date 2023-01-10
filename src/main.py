@@ -1,6 +1,6 @@
 from os import environ
 from fastapi import FastAPI
-from routers import server, users
+from routers import server, users, game
 from services.dataaccess import DataAccess
 from services.businesslogic import BLFacade
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +16,7 @@ dataAccess = DataAccess(db_user,db_password,db_host,db_database)
 dataAccess.initialize_db()
 
 BLFacade.setDataaccess(dataAccess)
+BLFacade.load_game_list()
 
 # Create application
 app = FastAPI(redoc_url=None)
@@ -44,4 +45,9 @@ app.include_router(
     users.router,
     prefix="/api/v1/user",
     tags= ["users"]
+    )
+app.include_router(
+    game.router,
+    prefix="/api/v1/game",
+    tags= ["games"]
     )

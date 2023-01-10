@@ -278,3 +278,18 @@ class BLFacade:
             raise ServerNotFoundException(f"Server not found. ({server_name})")
 
         return server.execute_game_command(command)
+
+    @staticmethod
+    def load_game_list():
+        db = BLFacade.getDB()
+        db.open()
+        db.load_game_list()
+        db.close()
+
+    @staticmethod
+    def get_game_list():
+        db = BLFacade.getDB()
+        db.open()
+        game_list = db.get_game_list()
+        db.close()
+        return game_list

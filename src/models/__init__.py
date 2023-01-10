@@ -6,3 +6,4 @@ from models.TokenModel import TokenModel
 from models.UserModel import UserModel, UserModelPassword
 from models.GameConsoleCommand import GameConsoleCommand
 from models.ServerWithDetailsModel import ServerWithDetailsModel
+from models.GameModel import GameModel

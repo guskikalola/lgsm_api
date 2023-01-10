@@ -4,7 +4,7 @@ from services.domain import User
 from models import ServerModel, GameConsoleCommand, ServerWithDetailsModel, ServerInputModel
 from services.exceptions import ServerNameRepeatedException
 from services.enums.LinuxGSMResponses import ServerCommandsResponse
-from services.exceptions import ServerNotFoundException, ContainerNotRunningException
+from services.exceptions import ServerNotFoundException, ContainerNotRunningException, GameNotExistsException
 from services.enums import ExecutionMethodEnum
 from sse_starlette.sse import EventSourceResponse
 from services.utils import ConsoleStream 
@@ -123,6 +123,10 @@ async def create_server(server: ServerInputModel, current_user: User = Depends(B
     try:
         server = BLFacade.create_server(server.server_name, server.game_name)
     except ServerNameRepeatedException as e:
+        raise HTTPException(status_code=400, detail=[{
+            "msg": e.args[0]
+        }])
+    except GameNotExistsException as e:
         raise HTTPException(status_code=400, detail=[{
             "msg": e.args[0]
         }])

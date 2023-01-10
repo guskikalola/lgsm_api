@@ -2,8 +2,9 @@ import mariadb
 import sys
 from services.domain import User
 from services.domain import Server
-from services.exceptions import ServerNameRepeatedException
-
+from services.exceptions import ServerNameRepeatedException, GameNotExistsException
+from services.utils import ServerList
+from models import GameModel
 
 class DataAccess:
     def __init__(self, user, password, host, database):
@@ -47,6 +48,20 @@ class DataAccess:
             END;
         """
 
+        create_procedure_create_game_sql = """
+            CREATE DEFINER=CURRENT_USER PROCEDURE IF NOT EXISTS `CreateGame` (IN `gm_p` VARCHAR(15) CHARSET utf8mb4, IN `game_name_p` VARCHAR(125) CHARSET utf8mb4,IN `game_full_name_p` VARCHAR(125) CHARSET utf8mb4)  COMMENT 'Creates a game' BEGIN
+                REPLACE INTO GAME(gm,game_name,game_full_name) VALUES (gm_p,game_name_p,game_full_name_p);
+            END;
+        """
+
+        create_table_games_sql = """
+            CREATE TABLE IF NOT EXISTS `GAME` (
+                `game_name` varchar(125) NOT NULL PRIMARY KEY,
+                `gm` varchar(15) NOT NULL,
+                `game_full_name` varchar(125) NOT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+        """
+
         create_table_users_sql = """
             CREATE TABLE IF NOT EXISTS `USER` (
                 `username` varchar(125) NOT NULL PRIMARY KEY,
@@ -61,13 +76,16 @@ class DataAccess:
             CREATE TABLE IF NOT EXISTS `SERVER` (
                 `server_name` VARCHAR(125) NOT NULL PRIMARY KEY, 
                 `server_pretty_name` VARCHAR(125) NOT NULL, 
-                `game_name` VARCHAR(125) NOT NULL
+                `game_name` VARCHAR(125) NOT NULL,
+                FOREIGN KEY (game_name) REFERENCES GAME(game_name)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
         """
 
         self.cursor.execute(create_procedure_create_user_sql)
         self.cursor.execute(create_procedure_create_server_sql)
         self.cursor.execute(create_procedure_delete_server_sql)
+        self.cursor.execute(create_procedure_create_game_sql)
+        self.cursor.execute(create_table_games_sql)
         self.cursor.execute(create_table_users_sql)
         self.cursor.execute(create_table_servers_sql)
         self.connection.commit()
@@ -90,6 +108,16 @@ class DataAccess:
         if not self.connection is None:
             self.connection.close()
             self.connection = None
+
+    def load_game_list(self):
+        self.connection.begin()
+        for (gm, game_name, game_full_name) in ServerList():
+            params = (gm, game_name, game_full_name)
+            try:
+                self.cursor.callproc("CreateGame", params)
+            except mariadb.IntegrityError as e:
+                print("[db.load_game_list] "+game_name + " skipped, its already created and has a server referencing it")
+        self.connection.commit()
 
     def get_user(self, username: str) -> User | None:
         sql = "SELECT username,full_name,email,hashed_password,active FROM USER WHERE username = ?"
@@ -158,7 +186,9 @@ class DataAccess:
             self.connection.begin()
             self.cursor.callproc("CreateServer", parameters)
             self.connection.commit()
-        except mariadb.Error as e:
+        except mariadb.IntegrityError as e:
+            raise GameNotExistsException("No game exists with that name : " + server.game_name)
+        except mariadb.Error:
             raise e
         return server
 
@@ -187,3 +217,12 @@ class DataAccess:
         server.remove()
 
         return server
+
+    def get_game_list(self):
+        sql = "SELECT gm, game_name, game_full_name FROM GAME"
+        self.cursor.execute(sql)
+        games = self.cursor.fetchall()
+        if not games is None:
+            return [GameModel(gm=game[0], game_name=game[1], game_full_name=game[2]) for game in games]
+        else:
+            return None
