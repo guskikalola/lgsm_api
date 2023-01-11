@@ -11,6 +11,7 @@ from fastapi import HTTPException, Depends, status
 from services.domain import User
 from services.exceptions import ServerNotFoundException, ContainerNotRunningException
 from services.enums import ExecutionMethodEnum
+from services.utils import ConsoleStream
 import re
 
 # Authetication enabled?
@@ -176,7 +177,7 @@ class BLFacade:
         return unpretty
 
     @staticmethod
-    def create_server(server_pretty_name: str, game_name: str):
+    async def create_server(server_pretty_name: str, game_name: str):
         """Create a new server
 
         Creates a new server entry in the database, creates the
@@ -190,7 +191,6 @@ class BLFacade:
 
         db = BLFacade.getDB()
         db.open()
-        # TODO : Handle duplicated key and invalid game
         try:
             server = db.create_server(
                 server_name, server_pretty_name, game_name)
@@ -199,19 +199,22 @@ class BLFacade:
             raise e
         else:
             db.close()
-            server.download()
-            return server
+            downloaded = await server.download()
+            if downloaded:
+                return server
+            else:
+                return None
 
     @staticmethod
-    def delete_server(server_name: str):
+    async def delete_server(server_name: str):
         db = BLFacade.getDB()
         db.open()
-        server = db.delete_server(server_name)
+        server = await db.delete_server(server_name)
         db.close()
         return server
 
     @staticmethod
-    def get_server(server_name: str, with_details: bool = False) -> ServerModel | ServerWithDetailsModel:
+    async def get_server(server_name: str, with_details: bool = False) -> ServerModel | ServerWithDetailsModel:
         db = BLFacade.getDB()
         db.open()
         server = db.get_server(server_name)
@@ -221,23 +224,37 @@ class BLFacade:
             raise ServerNotFoundException(f"Server not found. ({server_name})")
 
         if with_details:
-            return server.get_details_model()
+            return await server.get_details_model()
         else:
-            return server.get_model()
+            return await server.get_model()
 
     @staticmethod
-    def get_all_servers(with_details: bool) -> list[ServerModel] | list[ServerWithDetailsModel]:
+    def get_server_console_stream(server_name: str, request):
+        db = BLFacade.getDB()
+        db.open()
+        server = db.get_server(server_name)
+        db.close()
+
+        if not server:
+            raise ServerNotFoundException(f"Server not found. ({server_name})")
+
+        stream = server.get_console_stream(request)
+
+        return stream        
+
+    @staticmethod
+    async def get_all_servers(with_details: bool) -> list[ServerModel] | list[ServerWithDetailsModel]:
         db = BLFacade.getDB()
         db.open()
         servers = db.get_all_servers()
         db.close()
         if with_details:
-            return [server.get_details_model() for server in servers]
+            return [await server.get_details_model() for server in servers]
         else:
-            return [server.get_model() for server in servers]
+            return [await server.get_model() for server in servers]
 
     @staticmethod
-    def execute_method(server_name: str, execution_method: ExecutionMethodEnum, stop_container: bool):
+    async def execute_method(server_name: str, execution_method: ExecutionMethodEnum, stop_container: bool):
         db = BLFacade.getDB()
         db.open()
         server = db.get_server(server_name)
@@ -247,16 +264,16 @@ class BLFacade:
 
         match execution_method:
             case ExecutionMethodEnum.START:
-                return server.start()
+                return await server.start()
             case ExecutionMethodEnum.RESTART:
-                return server.restart()
+                return await server.restart()
             case ExecutionMethodEnum.STOP:
-                return server.stop(stop_container)
+                return await server.stop(stop_container)
             case _:
                 pass
 
     @staticmethod
-    def get_details(server_name: str):
+    async def get_details(server_name: str):
         db = BLFacade.getDB()
         db.open()
         server = db.get_server(server_name)
@@ -265,10 +282,10 @@ class BLFacade:
         if server is None:
             raise ServerNotFoundException(f"Server not found. ({server_name})")
 
-        return server.get_details()
+        return await server.get_details()
 
     @staticmethod
-    def send_game_console_command(server_name: str, command: str):
+    async def send_game_console_command(server_name: str, command: str):
         db = BLFacade.getDB()
         db.open()
         server = db.get_server(server_name)
@@ -276,8 +293,7 @@ class BLFacade:
 
         if server is None:
             raise ServerNotFoundException(f"Server not found. ({server_name})")
-
-        return server.execute_game_command(command)
+        return await server.execute_game_command(command)
 
     @staticmethod
     def load_game_list():

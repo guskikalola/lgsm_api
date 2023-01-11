@@ -1,9 +1,36 @@
-from os import environ
+from os import environ,rename,path,stat
 from fastapi import FastAPI
 from routers import server, users, game
 from services.dataaccess import DataAccess
 from services.businesslogic import BLFacade
 from fastapi.middleware.cors import CORSMiddleware
+import logging
+from datetime import datetime
+
+LOGS_DIR="/app/logs"
+CURRENT_LOGS_FILE=path.join(LOGS_DIR,"current.log")
+TODAY = datetime.today()
+OLD_LOGS_FILE_RENAME=path.join(LOGS_DIR,f"{TODAY.strftime('%Y-%m-%d')}.log")
+ONE_DAY_IN_MS = 86400000
+
+# Rename previous logs if they are from a different day
+last_timestamp = stat(CURRENT_LOGS_FILE).st_ctime
+today_timestamp =TODAY.timestamp()
+last_is_old = (today_timestamp - last_timestamp) > ONE_DAY_IN_MS
+if path.exists(CURRENT_LOGS_FILE) and last_is_old:
+    rename(CURRENT_LOGS_FILE, OLD_LOGS_FILE_RENAME)
+
+# Setup logging
+logger = logging.getLogger("lgsm_api")
+logging.basicConfig(
+    filename=CURRENT_LOGS_FILE,
+    format='%(asctime)s [%(levelname)s:%(name)s]: %(message)s',
+    datefmt='%Y/%m/%d %I:%M:%S %p',
+    level=logging.DEBUG,
+)
+
+logging.getLogger("sse_starlette.sse").disabled = True
+logging.getLogger("passlib.handlers.bcrypt").disabled = True
 
 # Connect to database
 db_user = environ.get("MARIADB_USER")

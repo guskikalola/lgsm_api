@@ -5,6 +5,9 @@ from services.domain import Server
 from services.exceptions import ServerNameRepeatedException, GameNotExistsException
 from services.utils import ServerList
 from models import GameModel
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DataAccess:
     def __init__(self, user, password, host, database):
@@ -28,7 +31,7 @@ class DataAccess:
             self.close()
             return None
         except mariadb.Error as e:
-            print("INITIALIZING DATABASE")
+            logging.info("INITIALIZING DATABASE")
 
         self.connection.begin()
         create_procedure_create_user_sql = """
@@ -116,7 +119,7 @@ class DataAccess:
             try:
                 self.cursor.callproc("CreateGame", params)
             except mariadb.IntegrityError as e:
-                print("[db.load_game_list] "+game_name + " skipped, its already created and has a server referencing it")
+                logger.debug("[db.load_game_list] "+game_name + " skipped, its already created and has a server referencing it")
         self.connection.commit()
 
     def get_user(self, username: str) -> User | None:
@@ -165,11 +168,11 @@ class DataAccess:
         Creates a new server entry in the database, creates the
         server folder and downloads the basic scripts from linuxgsm there.
 
-        :param str server_name: Server unique identifier
-        :param str server_pretty_name: Server pretty name
-        :param str game_name: Name of the server's game
+        @param str server_name: Server unique identifier
+        @param str server_pretty_name: Server pretty name
+        @param str game_name: Name of the server's game
+
         """
-        print(server_pretty_name)
         server = Server(
             server_name=server_name,
             server_pretty_name=server_pretty_name,
@@ -192,12 +195,13 @@ class DataAccess:
             raise e
         return server
 
-    def delete_server(self, server_name: str):
+    async def delete_server(self, server_name: str):
         """Delete a server
 
         Deletes the server from the database and filesystem
 
-        :param str server_name: Server unique identifier
+        @param str server_name: Server unique identifier
+
         """
 
         server = self.get_server(server_name)
@@ -214,7 +218,7 @@ class DataAccess:
         except mariadb.Error as e:
             raise e
 
-        server.remove()
+        await server.remove()
 
         return server
 
