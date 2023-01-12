@@ -44,9 +44,9 @@ async def get_server_details(server_name: str, current_user: User = Depends(BLFa
 
 
 @router.get("/{server_name}/console")
-async def console_stream(server_name: str, request: Request, current_user: User = Depends(BLFacade.get_current_active_user)):
+async def console_stream(server_name: str, request: Request, limit: int = 1000, current_user: User = Depends(BLFacade.get_current_active_user)):
     try:
-        event_generator = BLFacade.get_server_console_stream(server_name,request)
+        event_generator = BLFacade.get_server_console_stream(server_name,request,limit)
     except ServerNotFoundException:
         raise HTTPException(status_code=400, detail=[{
             "msg": "Server not found"

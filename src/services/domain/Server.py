@@ -236,13 +236,13 @@ class Server:
 
         return f"{self.exec_path}/log/console/{self.game_name}-console.log"
 
-    def get_console_stream(self, request):
+    def get_console_stream(self, request, limit: int):
         """Get the console stream
 
         Returns a stream to read real-time content of the console logs file
         """
 
-        return ConsoleStream(self, request)
+        return ConsoleStream(self, request, limit)
 
     async def execute_game_command(self, command: str) -> int:
         """Executes a command inside the server's console

@@ -174,6 +174,8 @@ class BLFacade:
         regex = re.compile(r"( )+")
         unpretty = regex.sub(" ", unpretty)
         unpretty = unpretty.replace(" ", "_")
+        regex = re.compile(r"[\\/_\"'*^.]+")
+        unpretty = regex.sub("", unpretty)
         return unpretty
 
     @staticmethod
@@ -229,7 +231,7 @@ class BLFacade:
             return await server.get_model()
 
     @staticmethod
-    def get_server_console_stream(server_name: str, request):
+    def get_server_console_stream(server_name: str, request, limit: int):
         db = BLFacade.getDB()
         db.open()
         server = db.get_server(server_name)
@@ -238,7 +240,7 @@ class BLFacade:
         if not server:
             raise ServerNotFoundException(f"Server not found. ({server_name})")
 
-        stream = server.get_console_stream(request)
+        stream = server.get_console_stream(request, limit)
 
         return stream        
 
