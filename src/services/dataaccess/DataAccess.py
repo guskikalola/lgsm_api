@@ -114,7 +114,7 @@ class DataAccess:
 
     def load_game_list(self):
         self.connection.begin()
-        for (gm, game_name, game_full_name) in ServerList():
+        for (gm, game_name, game_full_name, _) in ServerList():
             params = (gm, game_name, game_full_name)
             try:
                 self.cursor.callproc("CreateGame", params)
