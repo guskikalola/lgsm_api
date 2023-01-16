@@ -5,6 +5,7 @@ from datetime import datetime
 from services.utils import DockerComposeTemplate, ServerDetailsParser
 from services.enums import ServerCommandsResponse, ServerStatusEnum
 from services.utils import ConsoleStream
+import re
 import logging
 
 logger = logging.getLogger(__name__)
@@ -255,8 +256,17 @@ class Server:
 
         if await self.get_status() != ServerStatusEnum.STARTED:
             return ServerCommandsResponse.NOT_RUNNING
-        result = await self.execute("send", command)
-        return result.get("returncode")
+
+        regex = re.compile("[\"']")
+        command = regex.sub('\\"',command)
+
+        cmd = f"docker exec -i {self.server_name} bash -c 'tmux send-keys -t \"{self.game_name}\" \"{command}\" ENTER && exit $?'"
+
+        stdout, _, _ = await run(cmd)
+
+        if "no server running" in stdout:
+            return ServerCommandsResponse.NOT_RUNNING
+        return ServerCommandsResponse.OK
 
     async def get_details_model(self):
         details = await self.get_details()
