@@ -2,7 +2,7 @@ from models import ServerModel
 from models import ServerDetailsModel, ServerWithDetailsModel
 import asyncio
 from datetime import datetime
-from services.utils import DockerComposeTemplate, ServerDetailsParser
+from services.utils import DockerComposeTemplate, ServerDetailsParser, ServerDetailsFactory
 from services.enums import ServerCommandsResponse, ServerStatusEnum
 from services.utils import ConsoleStream
 import re
@@ -211,9 +211,7 @@ class Server:
                 return ServerStatusEnum.STARTED
 
     def __get_details_model(self, details: dict):
-        return ServerDetailsModel(
-            ip_address=details.get("Internet IP"),
-        )
+        return ServerDetailsFactory.build(self, details)
 
     async def get_details(self) -> ServerDetailsModel:
         """Get the server's details

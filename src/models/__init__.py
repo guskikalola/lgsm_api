@@ -1,4 +1,4 @@
-from models.ServerDetailsModel import ServerDetailsModel
+from models.ServerDetailsModel import *
 from models.ServerInputModel import ServerInputModel
 from models.ServerModel import ServerModel
 from models.TokenDataModel import TokenDataModel
