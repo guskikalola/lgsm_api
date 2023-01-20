@@ -13,13 +13,18 @@ TODAY = datetime.today()
 OLD_LOGS_FILE_RENAME=path.join(LOGS_DIR,f"{TODAY.strftime('%Y-%m-%d')}.log")
 ONE_DAY_IN_MS = 86400000
 
+if not path.exists(CURRENT_LOGS_FILE): 
+    open(CURRENT_LOGS_FILE, 'a').close()
+
 # Rename previous logs if they are from a different day
 last_date = datetime.fromtimestamp(stat(CURRENT_LOGS_FILE).st_ctime).strftime('%Y-%m-%d')
 today_date = TODAY.strftime('%Y-%m-%d')
 last_is_old = last_date != today_date
-if path.exists(CURRENT_LOGS_FILE) and last_is_old:
+
+if path.exists(CURRENT_LOGS_FILE) and last_is_old: # If the file exists but its old, rename it 
     rename(CURRENT_LOGS_FILE, OLD_LOGS_FILE_RENAME)
 
+    
 # Setup logging
 logger = logging.getLogger("lgsm_api")
 logging.basicConfig(
